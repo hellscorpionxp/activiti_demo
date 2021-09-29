@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Insert title here</title>
+<script src="/webjars/vue/vue.min.js"></script>
+<script src="/webjars/axios/dist/axios.min.js"></script>
+<link rel="stylesheet"
+  href="https://unpkg.com/bpmn-js/dist/assets/diagram-js.css">
+<link rel="stylesheet"
+  href="https://unpkg.com/bpmn-js/dist/assets/bpmn-font/css/bpmn.css">
+<link rel="stylesheet" 
+  href="https://unpkg.com/bpmn-js-properties-panel/dist/assets/bpmn-js-properties-panel.css" />
+<script src="https://unpkg.com/bpmn-js/dist/bpmn-modeler.development.js"></script>
+<script src="js/properties-panel.js"></script>
+<style>
+html, body, #canvas {
+  height: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+#save-button {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+}
+</style>
+</head>
+<body>
+  <div id="canvas"></div>
+  <div id="properties"></div>
+  <div id="app">
+    <button id="save-button" v-on:click="save()">save</button>
+  </div>
+</body>
+<script>
+  const diagramUrl = 'https://cdn.staticaly.com/gh/bpmn-io/bpmn-js-examples/dfceecba/starter/diagram.bpmn';
+  const bjs = new BpmnJS({
+    container: '#canvas'
+  });
+  const saveUrl = 'http://localhost:8080/rest/process/save';
+  async function loadDiagram(bpmnXML) {
+    try {
+      await bjs.importXML(bpmnXML);
+      let canvas = bjs.get('canvas');
+      canvas.zoom('fit-viewport');
+    } catch (err) {
+      console.error('could not import BPMN 2.0 diagram', err);
+    }
+  }
+  async function exportDiagram() {
+    try {
+      let result = await bjs.saveXML({ format: true });
+      console.log('DIAGRAM', result);
+      return result.xml;
+    } catch (err) {
+      console.error('could not save BPMN 2.0 diagram', err);
+    }
+  }
+  async function exportImage() {
+    try {
+      let result = await bjs.saveSVG();
+      console.log('SVG', result);
+      return result.svg;
+    } catch (err) {
+      console.error('could not save BPMN 2.0 diagram', err);
+    }
+  }
+  new Vue({
+    el: "#app",
+    mounted() {
+      axios.get(diagramUrl)
+      .then((resp) => {
+        loadDiagram(resp.data);
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+    },
+    methods: {
+      async save() {
+        let xml = await exportDiagram();
+        let svg = await exportImage();
+        let params = new URLSearchParams();
+        params.append('bpmn', xml);
+        params.append('svg', svg);
+        axios.post(saveUrl, params)
+        .then((resp) => {
+          alert(resp.data);
+        })
+        .catch((err) => {
+          console.error(err);
+        });
+      }
+    }
+  });
+</script>
+</html>
